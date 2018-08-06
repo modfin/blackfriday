@@ -46,7 +46,7 @@ const (
 	SmartypantsLatexDashes                        // Enable LaTeX-style dashes (with Smartypants)
 	SmartypantsAngledQuotes                       // Enable angled double quotes (with Smartypants) for double quotes rendering
 	SmartypantsQuotesNBSP                         // Enable « French guillemets » (with Smartypants)
-	TOC                                           // Generate a table of contents
+	//TOC                                           // Generate a table of contents
 )
 
 var (
@@ -629,7 +629,7 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			// to be added and when not.
 			if node.Prev != nil {
 				switch node.Prev.Type {
-				case HTMLBlock, List, Paragraph, Heading, CodeBlock, BlockQuote, HorizontalRule:
+				case HTMLBlock, List, Paragraph, CodeBlock, BlockQuote, HorizontalRule:
 					r.cr(w)
 				}
 			}
@@ -658,31 +658,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 		r.cr(w)
 		r.out(w, node.Literal)
 		r.cr(w)
-	case Heading:
-		headingLevel := r.HTMLRendererParameters.HeadingLevelOffset + node.Level
-		openTag, closeTag := headingTagsFromLevel(headingLevel)
-		if entering {
-			if node.IsTitleblock {
-				attrs = append(attrs, `class="title"`)
-			}
-			if node.HeadingID != "" {
-				id := r.ensureUniqueHeadingID(node.HeadingID)
-				if r.HeadingIDPrefix != "" {
-					id = r.HeadingIDPrefix + id
-				}
-				if r.HeadingIDSuffix != "" {
-					id = id + r.HeadingIDSuffix
-				}
-				attrs = append(attrs, fmt.Sprintf(`id="%s"`, id))
-			}
-			r.cr(w)
-			r.tag(w, openTag, attrs)
-		} else {
-			r.out(w, closeTag)
-			if !(node.Parent.Type == Item && node.Next == nil) {
-				r.cr(w)
-			}
-		}
 	case HorizontalRule:
 		r.cr(w)
 		r.outHRTag(w)
@@ -833,9 +808,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 // RenderHeader writes HTML document preamble and TOC if requested.
 func (r *HTMLRenderer) RenderHeader(w io.Writer, ast *Node) {
 	r.writeDocumentHeader(w)
-	if r.Flags&TOC != 0 {
-		r.writeTOC(w, ast)
-	}
 }
 
 // RenderFooter writes HTML document footer.
@@ -894,56 +866,3 @@ func (r *HTMLRenderer) writeDocumentHeader(w io.Writer) {
 	io.WriteString(w, "<body>\n\n")
 }
 
-func (r *HTMLRenderer) writeTOC(w io.Writer, ast *Node) {
-	buf := bytes.Buffer{}
-
-	inHeading := false
-	tocLevel := 0
-	headingCount := 0
-
-	ast.Walk(func(node *Node, entering bool) WalkStatus {
-		if node.Type == Heading && !node.HeadingData.IsTitleblock {
-			inHeading = entering
-			if entering {
-				node.HeadingID = fmt.Sprintf("toc_%d", headingCount)
-				if node.Level == tocLevel {
-					buf.WriteString("</li>\n\n<li>")
-				} else if node.Level < tocLevel {
-					for node.Level < tocLevel {
-						tocLevel--
-						buf.WriteString("</li>\n</ul>")
-					}
-					buf.WriteString("</li>\n\n<li>")
-				} else {
-					for node.Level > tocLevel {
-						tocLevel++
-						buf.WriteString("\n<ul>\n<li>")
-					}
-				}
-
-				fmt.Fprintf(&buf, `<a href="#toc_%d">`, headingCount)
-				headingCount++
-			} else {
-				buf.WriteString("</a>")
-			}
-			return GoToNext
-		}
-
-		if inHeading {
-			return r.RenderNode(&buf, node, entering)
-		}
-
-		return GoToNext
-	})
-
-	for ; tocLevel > 0; tocLevel-- {
-		buf.WriteString("</li>\n</ul>")
-	}
-
-	if buf.Len() > 0 {
-		io.WriteString(w, "<nav>\n")
-		w.Write(buf.Bytes())
-		io.WriteString(w, "\n\n</nav>\n")
-	}
-	r.lastOutputLen = buf.Len()
-}

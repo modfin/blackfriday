@@ -19,8 +19,7 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/shurcooL/sanitized_anchor_name"
-)
+		)
 
 const (
 	charEntity = "&(?:#x[a-f0-9]{1,8}|#[0-9]{1,8}|[a-z][a-z0-9]{1,31});"
@@ -42,42 +41,15 @@ func (p *Markdown) block(data []byte) {
 	}
 	p.nesting++
 
+
+
 	// parse out one block-level construct at a time
 	for len(data) > 0 {
-		// prefixed heading:
-		//
-		// # Heading 1
-		// ## Heading 2
-		// ...
-		// ###### Heading 6
-		if p.isPrefixHeading(data) {
-			data = data[p.prefixHeading(data):]
-			continue
-		}
 
-		// block of preformatted HTML:
-		//
-		// <div>
-		//     ...
-		// </div>
 		if data[0] == '<' {
 			if i := p.html(data, true); i > 0 {
 				data = data[i:]
 				continue
-			}
-		}
-
-		// title block
-		//
-		// % stuff
-		// % more stuff
-		// % even more stuff
-		if p.extensions&Titleblock != 0 {
-			if data[0] == '%' {
-				if i := p.titleBlock(data, true); i > 0 {
-					data = data[i:]
-					continue
-				}
 			}
 		}
 
@@ -203,117 +175,6 @@ func (p *Markdown) addBlock(typ NodeType, content []byte) *Node {
 	container := p.addChild(typ, 0)
 	container.content = content
 	return container
-}
-
-func (p *Markdown) isPrefixHeading(data []byte) bool {
-	if data[0] != '#' {
-		return false
-	}
-
-	if p.extensions&SpaceHeadings != 0 {
-		level := 0
-		for level < 6 && level < len(data) && data[level] == '#' {
-			level++
-		}
-		if level == len(data) || data[level] != ' ' {
-			return false
-		}
-	}
-	return true
-}
-
-func (p *Markdown) prefixHeading(data []byte) int {
-	level := 0
-	for level < 6 && level < len(data) && data[level] == '#' {
-		level++
-	}
-	i := skipChar(data, level, ' ')
-	end := skipUntilChar(data, i, '\n')
-	skip := end
-	id := ""
-	if p.extensions&HeadingIDs != 0 {
-		j, k := 0, 0
-		// find start/end of heading id
-		for j = i; j < end-1 && (data[j] != '{' || data[j+1] != '#'); j++ {
-		}
-		for k = j + 1; k < end && data[k] != '}'; k++ {
-		}
-		// extract heading id iff found
-		if j < end && k < end {
-			id = string(data[j+2 : k])
-			end = j
-			skip = k + 1
-			for end > 0 && data[end-1] == ' ' {
-				end--
-			}
-		}
-	}
-	for end > 0 && data[end-1] == '#' {
-		if isBackslashEscaped(data, end-1) {
-			break
-		}
-		end--
-	}
-	for end > 0 && data[end-1] == ' ' {
-		end--
-	}
-	if end > i {
-		if id == "" && p.extensions&AutoHeadingIDs != 0 {
-			id = sanitized_anchor_name.Create(string(data[i:end]))
-		}
-		block := p.addBlock(Heading, data[i:end])
-		block.HeadingID = id
-		block.Level = level
-	}
-	return skip
-}
-
-func (p *Markdown) isUnderlinedHeading(data []byte) int {
-	// test of level 1 heading
-	if data[0] == '=' {
-		i := skipChar(data, 1, '=')
-		i = skipChar(data, i, ' ')
-		if i < len(data) && data[i] == '\n' {
-			return 1
-		}
-		return 0
-	}
-
-	// test of level 2 heading
-	if data[0] == '-' {
-		i := skipChar(data, 1, '-')
-		i = skipChar(data, i, ' ')
-		if i < len(data) && data[i] == '\n' {
-			return 2
-		}
-		return 0
-	}
-
-	return 0
-}
-
-func (p *Markdown) titleBlock(data []byte, doRender bool) int {
-	if data[0] != '%' {
-		return 0
-	}
-	splitData := bytes.Split(data, []byte("\n"))
-	var i int
-	for idx, b := range splitData {
-		if !bytes.HasPrefix(b, []byte("%")) {
-			i = idx // - 1
-			break
-		}
-	}
-
-	data = bytes.Join(splitData[0:i], []byte("\n"))
-	consumed := len(data)
-	data = bytes.TrimPrefix(data, []byte("% "))
-	data = bytes.Replace(data, []byte("\n% "), []byte("\n"), -1)
-	block := p.addBlock(Heading, data)
-	block.Level = 1
-	block.IsTitleblock = true
-
-	return consumed
 }
 
 func (p *Markdown) html(data []byte, doRender bool) int {
@@ -1342,16 +1203,6 @@ gatherlines:
 				sublist = raw.Len()
 			}
 
-		// is this a nested prefix heading?
-		case p.isPrefixHeading(chunk):
-			// if the heading is not indented, it is not nested in the list
-			// and thus ends the list
-			if containsBlankLine && indent < 4 {
-				*flags |= ListItemEndOfList
-				break gatherlines
-			}
-			*flags |= ListItemContainsBlock
-
 		// anything following an empty line is only part
 		// of this item if it is indented 4 spaces
 		// (regardless of the indentation of the beginning of the item)
@@ -1486,38 +1337,6 @@ func (p *Markdown) paragraph(data []byte) int {
 			return i + n
 		}
 
-		// an underline under some text marks a heading, so our paragraph ended on prev line
-		if i > 0 {
-			if level := p.isUnderlinedHeading(current); level > 0 {
-				// render the paragraph
-				p.renderParagraph(data[:prev])
-
-				// ignore leading and trailing whitespace
-				eol := i - 1
-				for prev < eol && data[prev] == ' ' {
-					prev++
-				}
-				for eol > prev && data[eol-1] == ' ' {
-					eol--
-				}
-
-				id := ""
-				if p.extensions&AutoHeadingIDs != 0 {
-					id = sanitized_anchor_name.Create(string(data[prev:eol]))
-				}
-
-				block := p.addBlock(Heading, data[prev:eol])
-				block.Level = level
-				block.HeadingID = id
-
-				// find the end of the underline
-				for i < len(data) && data[i] != '\n' {
-					i++
-				}
-				return i
-			}
-		}
-
 		// if the next line starts a block of HTML, then the paragraph ends here
 		if p.extensions&LaxHTMLBlocks != 0 {
 			if data[i] == '<' && p.html(current, false) > 0 {
@@ -1527,8 +1346,8 @@ func (p *Markdown) paragraph(data []byte) int {
 			}
 		}
 
-		// if there's a prefixed heading or a horizontal rule after this, paragraph is over
-		if p.isPrefixHeading(current) || p.isHRule(current) {
+		// if there's a horizontal rule after this, paragraph is over
+		if p.isHRule(current) {
 			p.renderParagraph(data[:i])
 			return i
 		}

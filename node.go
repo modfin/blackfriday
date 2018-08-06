@@ -17,7 +17,7 @@ const (
 	List
 	Item
 	Paragraph
-	Heading
+	//Heading
 	HorizontalRule
 	Emph
 	Strong
@@ -44,7 +44,6 @@ var nodeTypeNames = []string{
 	List:           "List",
 	Item:           "Item",
 	Paragraph:      "Paragraph",
-	Heading:        "Heading",
 	HorizontalRule: "HorizontalRule",
 	Emph:           "Emph",
 	Strong:         "Strong",
@@ -102,13 +101,6 @@ type TableCellData struct {
 	Align    CellAlignFlags // This holds the value for align attribute
 }
 
-// HeadingData contains fields relevant to a Heading node type.
-type HeadingData struct {
-	Level        int    // This holds the heading level number
-	HeadingID    string // This might hold heading ID, if present
-	IsTitleblock bool   // Specifies whether it's a title block
-}
-
 // Node is a single element in the abstract syntax tree of the parsed document.
 // It holds connections to the structurally neighboring nodes and, for certain
 // types of nodes, additional information that might be needed when rendering.
@@ -122,7 +114,6 @@ type Node struct {
 
 	Literal []byte // Text contents of the leaf nodes
 
-	HeadingData   // Populated if Type is Heading
 	ListData      // Populated if Type is List
 	CodeBlockData // Populated if Type is CodeBlock
 	LinkData      // Populated if Type is Link
@@ -210,8 +201,6 @@ func (n *Node) isContainer() bool {
 	case Item:
 		fallthrough
 	case Paragraph:
-		fallthrough
-	case Heading:
 		fallthrough
 	case Emph:
 		fallthrough

@@ -37,13 +37,11 @@ const (
 	Autolink                                      // Detect embedded URLs that are not explicitly marked
 	Strikethrough                                 // Strikethrough text using ~~test~~
 	LaxHTMLBlocks                                 // Loosen up HTML block parsing rules
-	SpaceHeadings                                 // Be strict about prefix heading rules
 	HardLineBreak                                 // Translate newlines into line breaks
 	TabSizeEight                                  // Expand tabs to eight spaces instead of four
 	Footnotes                                     // Pandoc-style footnotes
 	NoEmptyLineBeforeBlock                        // No need to insert an empty line to start a (code, quote, ordered list, unordered list) block
 	HeadingIDs                                    // specify heading IDs  with {#id}
-	Titleblock                                    // Titleblock ala pandoc
 	AutoHeadingIDs                                // Create the heading ID from the text
 	BackslashLineBreak                            // Translate trailing backslashes into line breaks
 	DefinitionLists                               // Render definition lists
@@ -51,9 +49,9 @@ const (
 	CommonHTMLFlags HTMLFlags = UseXHTML | Smartypants |
 		SmartypantsFractions | SmartypantsDashes | SmartypantsLatexDashes
 
-	CommonExtensions Extensions = NoIntraEmphasis | Tables | FencedCode |
-		Autolink | Strikethrough | SpaceHeadings | HeadingIDs |
-		BackslashLineBreak | DefinitionLists
+	MfnStandardExtensions Extensions = NoIntraEmphasis | Tables |
+		Strikethrough |
+		BackslashLineBreak
 )
 
 // ListType contains bitwise or'ed flags for list and list item objects.
@@ -382,7 +380,7 @@ func Run(input []byte, opts ...Option) []byte {
 	r := NewHTMLRenderer(HTMLRendererParameters{
 		Flags: CommonHTMLFlags,
 	})
-	optList := []Option{WithRenderer(r), WithExtensions(CommonExtensions)}
+	optList := []Option{WithRenderer(r), WithExtensions(MfnStandardExtensions)}
 	optList = append(optList, opts...)
 	parser := New(optList...)
 	ast := parser.Parse(input)
@@ -408,7 +406,7 @@ func (p *Markdown) Parse(input []byte) *Node {
 	}
 	// Walk the tree again and process inline markdown in each block
 	p.doc.Walk(func(node *Node, entering bool) WalkStatus {
-		if node.Type == Paragraph || node.Type == Heading || node.Type == TableCell {
+		if node.Type == Paragraph || node.Type == TableCell {
 			p.inline(node, node.content)
 			node.content = nil
 		}
@@ -449,7 +447,7 @@ func (p *Markdown) parseRefsToAST() {
 	finalizeList(block)
 	p.tip = above
 	block.Walk(func(node *Node, entering bool) WalkStatus {
-		if node.Type == Paragraph || node.Type == Heading {
+		if node.Type == Paragraph {
 			p.inline(node, node.content)
 			node.content = nil
 		}
