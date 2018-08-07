@@ -64,7 +64,6 @@ func (t NodeType) String() string {
 // ListData contains fields relevant to a List and Item node type.
 type ListData struct {
 	ListFlags       ListType
-	Tight           bool   // Skip <p>s around list item data if true
 	BulletChar      byte   // '*', '+' or '-' in bullet lists
 	Delimiter       byte   // '.' or ')' after the number in ordered lists
 }

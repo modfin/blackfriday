@@ -336,21 +336,12 @@ func (r *HTMLRenderer) tag(w io.Writer, name []byte, attrs []string) {
 	r.lastOutputLen = 1
 }
 
-func itemOpenCR(node *Node) bool {
-	if node.Prev == nil {
-		return false
-	}
-	ld := node.Parent.ListData
-	return !ld.Tight && ld.ListFlags&ListTypeDefinition == 0
-}
-
 func skipParagraphTags(node *Node) bool {
 	grandparent := node.Parent.Parent
 	if grandparent == nil || grandparent.Type != List {
 		return false
 	}
-	tightOrTerm := grandparent.Tight || node.Parent.ListFlags&ListTypeTerm != 0
-	return grandparent.Type == List && tightOrTerm
+	return grandparent.Type == List
 }
 
 func cellAlignment(align CellAlignFlags) string {
@@ -607,7 +598,7 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 		}
 		if entering {
 			r.cr(w)
-			if node.Parent.Type == Item && node.Parent.Parent.Tight {
+			if node.Parent.Type == Item {
 				r.cr(w)
 			}
 			r.tag(w, openTag[:len(openTag)-1], attrs)
@@ -637,9 +628,7 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			closeTag = dtCloseTag
 		}
 		if entering {
-			if itemOpenCR(node) {
-				r.cr(w)
-			}
+			r.cr(w)
 			r.out(w, openTag)
 		} else {
 			r.out(w, closeTag)

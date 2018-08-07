@@ -492,13 +492,9 @@ func (p *Markdown) list(data []byte, flags ListType) int {
 	flags |= ListItemBeginningOfList
 	block := p.addBlock(List, nil)
 	block.ListFlags = flags
-	block.Tight = true
 
 	for i < len(data) {
 		skip := p.listItem(data[i:], &flags)
-		if flags&ListItemContainsBlock != 0 {
-			block.ListData.Tight = false
-		}
 		i += skip
 		if skip == 0 || flags&ListItemEndOfList != 0 {
 			break
@@ -544,25 +540,6 @@ func endsWithBlankLine(block *Node) bool {
 
 func finalizeList(block *Node) {
 	block.open = false
-	item := block.FirstChild
-	for item != nil {
-		// check for non-final list item ending with blank line:
-		if endsWithBlankLine(item) && item.Next != nil {
-			block.ListData.Tight = false
-			break
-		}
-		// recurse into children of list item, to see if there are spaces
-		// between any of them:
-		subItem := item.FirstChild
-		for subItem != nil {
-			if endsWithBlankLine(subItem) && (item.Next != nil || subItem.Next != nil) {
-				block.ListData.Tight = false
-				break
-			}
-			subItem = subItem.Next
-		}
-		item = item.Next
-	}
 }
 
 // Parse a single list item.
@@ -728,7 +705,6 @@ gatherlines:
 
 	block := p.addBlock(Item, nil)
 	block.ListFlags = *flags
-	block.Tight = false
 	block.BulletChar = bulletChar
 	block.Delimiter = '.' // Only '.' is possible in Markdown, but ')' will also be possible in CommonMark
 
