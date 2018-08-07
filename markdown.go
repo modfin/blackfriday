@@ -49,7 +49,7 @@ const (
 		SmartypantsFractions | SmartypantsDashes | SmartypantsLatexDashes
 
 	MfnStandardExtensions Extensions = NoIntraEmphasis | Tables |
-		Strikethrough |
+		Strikethrough | Autolink |
 		BackslashLineBreak
 )
 

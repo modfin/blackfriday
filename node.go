@@ -81,15 +81,6 @@ type LinkData struct {
 	Footnote    *Node  // If it's a footnote, this is a direct link to the footnote Node. Otherwise nil.
 }
 
-// CodeBlockData contains fields relevant to a CodeBlock node type.
-type CodeBlockData struct {
-	IsFenced    bool   // Specifies whether it's a fenced code block or an indented one
-	Info        []byte // This holds the info string
-	FenceChar   byte
-	FenceLength int
-	FenceOffset int
-}
-
 // TableCellData contains fields relevant to a TableCell node type.
 type TableCellData struct {
 	IsHeader bool           // This tells if it's under the header row
@@ -110,7 +101,6 @@ type Node struct {
 	Literal []byte // Text contents of the leaf nodes
 
 	ListData      // Populated if Type is List
-	CodeBlockData // Populated if Type is CodeBlock
 	LinkData      // Populated if Type is Link
 	TableCellData // Populated if Type is TableCell
 
