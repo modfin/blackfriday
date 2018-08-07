@@ -35,7 +35,6 @@ const (
 	Tables                                        // Render tables
 	Autolink                                      // Detect embedded URLs that are not explicitly marked
 	Strikethrough                                 // Strikethrough text using ~~test~~
-	LaxHTMLBlocks                                 // Loosen up HTML block parsing rules
 	HardLineBreak                                 // Translate newlines into line breaks
 	TabSizeEight                                  // Expand tabs to eight spaces instead of four
 	Footnotes                                     // Pandoc-style footnotes
@@ -49,7 +48,7 @@ const (
 		SmartypantsFractions | SmartypantsDashes | SmartypantsLatexDashes
 
 	MfnStandardExtensions Extensions = NoIntraEmphasis | Tables |
-		Strikethrough | Autolink |
+		Strikethrough | Autolink | NoEmptyLineBeforeBlock |
 		BackslashLineBreak
 )
 
@@ -288,7 +287,6 @@ func New(opts ...Option) *Markdown {
 	}
 	p.inlineCallback['\n'] = lineBreak
 	p.inlineCallback['['] = link
-	p.inlineCallback['<'] = leftAngle
 	p.inlineCallback['\\'] = escape
 	p.inlineCallback['&'] = entity
 	p.inlineCallback['!'] = maybeImage

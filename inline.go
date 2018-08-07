@@ -541,35 +541,6 @@ func link(p *Markdown, data []byte, offset int) (int, *Node) {
 	return i, linkNode
 }
 
-func (p *Markdown) inlineHTMLComment(data []byte) int {
-	if len(data) < 5 {
-		return 0
-	}
-	if data[0] != '<' || data[1] != '!' || data[2] != '-' || data[3] != '-' {
-		return 0
-	}
-	i := 5
-	// scan for an end-of-comment marker, across lines if necessary
-	for i < len(data) && !(data[i-2] == '-' && data[i-1] == '-' && data[i] == '>') {
-		i++
-	}
-	// no end-of-comment marker
-	if i >= len(data) {
-		return 0
-	}
-	return i + 1
-}
-
-func stripMailto(link []byte) []byte {
-	if bytes.HasPrefix(link, []byte("mailto://")) {
-		return link[9:]
-	} else if bytes.HasPrefix(link, []byte("mailto:")) {
-		return link[7:]
-	} else {
-		return link
-	}
-}
-
 // autolinkType specifies a kind of autolink that gets detected.
 type autolinkType int
 
@@ -579,37 +550,6 @@ const (
 	normalAutolink
 	emailAutolink
 )
-
-// '<' when tags or autolinks are allowed
-func leftAngle(p *Markdown, data []byte, offset int) (int, *Node) {
-	data = data[offset:]
-	altype, end := tagLength(data)
-	if size := p.inlineHTMLComment(data); size > 0 {
-		end = size
-	}
-	if end > 2 {
-		if altype != notAutolink {
-			var uLink bytes.Buffer
-			unescapeText(&uLink, data[1:end+1-2])
-			if uLink.Len() > 0 {
-				link := uLink.Bytes()
-				node := NewNode(Link)
-				node.Destination = link
-				if altype == emailAutolink {
-					node.Destination = append([]byte("mailto:"), link...)
-				}
-				node.AppendChild(text(stripMailto(link)))
-				return end, node
-			}
-		} else {
-			htmlTag := NewNode(HTMLSpan)
-			htmlTag.Literal = data[:end]
-			return end, htmlTag
-		}
-	}
-
-	return end, nil
-}
 
 // '\\' backslash escape
 var escapeChars = []byte("\\`*_{}[]()#+-.!:|&<>~")
@@ -734,20 +674,20 @@ func maybeAutoLink(p *Markdown, data []byte, offset int) (int, *Node) {
 }
 
 func autoLink(p *Markdown, data []byte, offset int) (int, *Node) {
-	// Now a more expensive check to see if we're not inside an anchor element
-	anchorStart := offset
-	offsetFromAnchor := 0
-	for anchorStart > 0 && data[anchorStart] != '<' {
-		anchorStart--
-		offsetFromAnchor++
-	}
-
-	anchorStr := anchorRe.Find(data[anchorStart:])
-	if anchorStr != nil {
-		anchorClose := NewNode(HTMLSpan)
-		anchorClose.Literal = anchorStr[offsetFromAnchor:]
-		return len(anchorStr) - offsetFromAnchor, anchorClose
-	}
+	//// Now a more expensive check to see if we're not inside an anchor element
+	//anchorStart := offset
+	//offsetFromAnchor := 0
+	//for anchorStart > 0 && data[anchorStart] != '<' {
+	//	anchorStart--
+	//	offsetFromAnchor++
+	//}
+	//
+	//anchorStr := anchorRe.Find(data[anchorStart:])
+	//if anchorStr != nil {
+	//	anchorClose := NewNode(HTMLSpan)
+	//	anchorClose.Literal = anchorStr[offsetFromAnchor:]
+	//	return len(anchorStr) - offsetFromAnchor, anchorClose
+	//}
 
 	// scan backward for a word boundary
 	rewind := 0

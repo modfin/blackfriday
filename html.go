@@ -545,11 +545,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 		} else {
 			r.out(w, delCloseTag)
 		}
-	case HTMLSpan:
-		if r.Flags&SkipHTML != 0 {
-			break
-		}
-		r.out(w, node.Literal)
 	case Link:
 		// mark it but don't link it if it is not a safe link: no smartypants
 		dest := node.LinkData.Destination

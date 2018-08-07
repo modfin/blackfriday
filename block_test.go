@@ -1003,29 +1003,6 @@ func TestPreformattedHtml(t *testing.T) {
 	doTestsBlock(t, tests, 0)
 }
 
-func TestPreformattedHtmlLax(t *testing.T) {
-	var tests = []string{
-		"Paragraph\n<div>\nHere? >&<\n</div>\n",
-		"<p>Paragraph</p>\n\n<div>\nHere? >&<\n</div>\n",
-
-		"Paragraph\n\n<div>\nHow about here? >&<\n</div>\n",
-		"<p>Paragraph</p>\n\n<div>\nHow about here? >&<\n</div>\n",
-
-		"Paragraph\n<div>\nHere? >&<\n</div>\nAnd here?\n",
-		"<p>Paragraph</p>\n\n<div>\nHere? >&<\n</div>\n\n<p>And here?</p>\n",
-
-		"Paragraph\n\n<div>\nHow about here? >&<\n</div>\nAnd here?\n",
-		"<p>Paragraph</p>\n\n<div>\nHow about here? >&<\n</div>\n\n<p>And here?</p>\n",
-
-		"Paragraph\n<div>\nHere? >&<\n</div>\n\nAnd here?\n",
-		"<p>Paragraph</p>\n\n<div>\nHere? >&<\n</div>\n\n<p>And here?</p>\n",
-
-		"Paragraph\n\n<div>\nHow about here? >&<\n</div>\n\nAnd here?\n",
-		"<p>Paragraph</p>\n\n<div>\nHow about here? >&<\n</div>\n\n<p>And here?</p>\n",
-	}
-	doTestsBlock(t, tests, LaxHTMLBlocks)
-}
-
 func TestFencedCodeBlock(t *testing.T) {
 	var tests = []string{
 		"``` go\nfunc foo() bool {\n\treturn true;\n}\n```\n",
