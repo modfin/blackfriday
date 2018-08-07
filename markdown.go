@@ -187,7 +187,7 @@ func New(opts ...Option) *Markdown {
 	p.inlineCallback['['] = link
 	p.inlineCallback['\\'] = escape
 	p.inlineCallback['&'] = entity
-	p.inlineCallback['!'] = maybeImage
+	//p.inlineCallback['!'] = maybeImage
 	if p.extensions&Autolink != 0 {
 		p.inlineCallback['h'] = maybeAutoLink
 		p.inlineCallback['m'] = maybeAutoLink
