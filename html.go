@@ -313,7 +313,7 @@ func needSkipLink(flags HTMLFlags, dest []byte) bool {
 
 func isSmartypantable(node *Node) bool {
 	pt := node.Parent.Type
-	return pt != Link && pt != CodeBlock && pt != Code
+	return pt != Link
 }
 
 func appendLanguageAttr(attrs []string, info []byte) []string {
@@ -614,10 +614,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 				r.out(w, []byte(`" />`))
 			}
 		}
-	case Code:
-		r.out(w, codeTag)
-		escapeHTML(w, node.Literal)
-		r.out(w, codeCloseTag)
 	case Document:
 		break
 	case Paragraph:
@@ -629,7 +625,7 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			// to be added and when not.
 			if node.Prev != nil {
 				switch node.Prev.Type {
-				case HTMLBlock, List, Paragraph, CodeBlock, BlockQuote, HorizontalRule:
+				case HTMLBlock, List, Paragraph, BlockQuote, HorizontalRule:
 					r.cr(w)
 				}
 			}
@@ -730,17 +726,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 				}
 			}
 			r.out(w, closeTag)
-			r.cr(w)
-		}
-	case CodeBlock:
-		attrs = appendLanguageAttr(attrs, node.Info)
-		r.cr(w)
-		r.out(w, preTag)
-		r.tag(w, codeTag[:len(codeTag)-1], attrs)
-		escapeHTML(w, node.Literal)
-		r.out(w, codeCloseTag)
-		r.out(w, preCloseTag)
-		if node.Parent.Type != Item {
 			r.cr(w)
 		}
 	case Table:

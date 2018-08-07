@@ -59,36 +59,6 @@ func (p *Markdown) block(data []byte) {
 			continue
 		}
 
-		// indented code block:
-		//
-		//     func max(a, b int) int {
-		//         if a > b {
-		//             return a
-		//         }
-		//         return b
-		//      }
-		if p.codePrefix(data) > 0 {
-			data = data[p.code(data):]
-			continue
-		}
-
-		// fenced code block:
-		//
-		// ``` go
-		// func fact(n int) int {
-		//     if n <= 1 {
-		//         return n
-		//     }
-		//     return n * fact(n-1)
-		// }
-		// ```
-		if p.extensions&FencedCode != 0 {
-			if i := p.fencedCodeBlock(data, true); i > 0 {
-				data = data[i:]
-				continue
-			}
-		}
-
 		// horizontal rule:
 		//
 		// ------
@@ -525,54 +495,6 @@ func isFenceLine(data []byte, info *string, oldmarker string) (end int, marker s
 	return i + 1, marker // Take newline into account.
 }
 
-// fencedCodeBlock returns the end index if data contains a fenced code block at the beginning,
-// or 0 otherwise. It writes to out if doRender is true, otherwise it has no side effects.
-// If doRender is true, a final newline is mandatory to recognize the fenced code block.
-func (p *Markdown) fencedCodeBlock(data []byte, doRender bool) int {
-	var info string
-	beg, marker := isFenceLine(data, &info, "")
-	if beg == 0 || beg >= len(data) {
-		return 0
-	}
-
-	var work bytes.Buffer
-	work.Write([]byte(info))
-	work.WriteByte('\n')
-
-	for {
-		// safe to assume beg < len(data)
-
-		// check for the end of the code block
-		fenceEnd, _ := isFenceLine(data[beg:], nil, marker)
-		if fenceEnd != 0 {
-			beg += fenceEnd
-			break
-		}
-
-		// copy the current line
-		end := skipUntilChar(data, beg, '\n') + 1
-
-		// did we reach the end of the buffer without a closing marker?
-		if end >= len(data) {
-			return 0
-		}
-
-		// verbatim copy to the working buffer
-		if doRender {
-			work.Write(data[beg:end])
-		}
-		beg = end
-	}
-
-	if doRender {
-		block := p.addBlock(CodeBlock, work.Bytes()) // TODO: get rid of temp buffer
-		block.IsFenced = true
-		finalizeCodeBlock(block)
-	}
-
-	return beg
-}
-
 func unescapeChar(str []byte) []byte {
 	if str[0] == '\\' {
 		return []byte{str[1]}
@@ -833,17 +755,8 @@ func (p *Markdown) quote(data []byte) int {
 	beg, end := 0, 0
 	for beg < len(data) {
 		end = beg
-		// Step over whole lines, collecting them. While doing that, check for
-		// fenced code and if one's found, incorporate it altogether,
-		// irregardless of any contents inside it
+		// Step over whole lines, collecting them.
 		for end < len(data) && data[end] != '\n' {
-			if p.extensions&FencedCode != 0 {
-				if i := p.fencedCodeBlock(data[end:], false); i > 0 {
-					// -1 to compensate for the extra end++ after the loop:
-					end += i - 1
-					break
-				}
-			}
 			end++
 		}
 		if end < len(data) && data[end] == '\n' {
@@ -873,55 +786,6 @@ func (p *Markdown) codePrefix(data []byte) int {
 		return 4
 	}
 	return 0
-}
-
-func (p *Markdown) code(data []byte) int {
-	var work bytes.Buffer
-
-	i := 0
-	for i < len(data) {
-		beg := i
-		for i < len(data) && data[i] != '\n' {
-			i++
-		}
-		if i < len(data) && data[i] == '\n' {
-			i++
-		}
-
-		blankline := p.isEmpty(data[beg:i]) > 0
-		if pre := p.codePrefix(data[beg:i]); pre > 0 {
-			beg += pre
-		} else if !blankline {
-			// non-empty, non-prefixed line breaks the pre
-			i = beg
-			break
-		}
-
-		// verbatim copy to the working buffer
-		if blankline {
-			work.WriteByte('\n')
-		} else {
-			work.Write(data[beg:i])
-		}
-	}
-
-	// trim all the \n off the end of work
-	workbytes := work.Bytes()
-	eol := len(workbytes)
-	for eol > 0 && workbytes[eol-1] == '\n' {
-		eol--
-	}
-	if eol != len(workbytes) {
-		work.Truncate(eol)
-	}
-
-	work.WriteByte('\n')
-
-	block := p.addBlock(CodeBlock, work.Bytes()) // TODO: get rid of temp buffer
-	block.IsFenced = false
-	finalizeCodeBlock(block)
-
-	return i
 }
 
 // returns unordered list item prefix
@@ -1119,7 +983,6 @@ func (p *Markdown) listItem(data []byte, flags *ListType) int {
 	// process the following lines
 	containsBlankLine := false
 	sublist := 0
-	codeBlockMarker := ""
 
 gatherlines:
 	for line < len(data) {
@@ -1152,27 +1015,6 @@ gatherlines:
 		}
 
 		chunk := data[line+indentIndex : i]
-
-		if p.extensions&FencedCode != 0 {
-			// determine if in or out of codeblock
-			// if in codeblock, ignore normal list processing
-			_, marker := isFenceLine(chunk, nil, codeBlockMarker)
-			if marker != "" {
-				if codeBlockMarker == "" {
-					// start of codeblock
-					codeBlockMarker = marker
-				} else {
-					// end of codeblock.
-					codeBlockMarker = ""
-				}
-			}
-			// we are in a codeblock, write line, and continue
-			if codeBlockMarker != "" || marker != "" {
-				raw.Write(data[line+indentIndex : i])
-				line = i
-				continue gatherlines
-			}
-		}
 
 		// evaluate how this line fits in
 		switch {
@@ -1350,14 +1192,6 @@ func (p *Markdown) paragraph(data []byte) int {
 		if p.isHRule(current) {
 			p.renderParagraph(data[:i])
 			return i
-		}
-
-		// if there's a fenced code block, paragraph is over
-		if p.extensions&FencedCode != 0 {
-			if p.fencedCodeBlock(current, false) > 0 {
-				p.renderParagraph(data[:i])
-				return i
-			}
 		}
 
 		// if there's a definition list item, prev line is a definition term

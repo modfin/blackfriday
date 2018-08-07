@@ -33,7 +33,6 @@ const (
 	NoExtensions           Extensions = 0
 	NoIntraEmphasis        Extensions = 1 << iota // Ignore emphasis markers inside words
 	Tables                                        // Render tables
-	FencedCode                                    // Render fenced code blocks
 	Autolink                                      // Detect embedded URLs that are not explicitly marked
 	Strikethrough                                 // Strikethrough text using ~~test~~
 	LaxHTMLBlocks                                 // Loosen up HTML block parsing rules
@@ -287,7 +286,6 @@ func New(opts ...Option) *Markdown {
 	if p.extensions&Strikethrough != 0 {
 		p.inlineCallback['~'] = emphasis
 	}
-	p.inlineCallback['`'] = codeSpan
 	p.inlineCallback['\n'] = lineBreak
 	p.inlineCallback['['] = link
 	p.inlineCallback['<'] = leftAngle

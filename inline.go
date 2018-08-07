@@ -128,52 +128,6 @@ func emphasis(p *Markdown, data []byte, offset int) (int, *Node) {
 	return 0, nil
 }
 
-func codeSpan(p *Markdown, data []byte, offset int) (int, *Node) {
-	data = data[offset:]
-
-	nb := 0
-
-	// count the number of backticks in the delimiter
-	for nb < len(data) && data[nb] == '`' {
-		nb++
-	}
-
-	// find the next delimiter
-	i, end := 0, 0
-	for end = nb; end < len(data) && i < nb; end++ {
-		if data[end] == '`' {
-			i++
-		} else {
-			i = 0
-		}
-	}
-
-	// no matching delimiter?
-	if i < nb && end >= len(data) {
-		return 0, nil
-	}
-
-	// trim outside whitespace
-	fBegin := nb
-	for fBegin < end && data[fBegin] == ' ' {
-		fBegin++
-	}
-
-	fEnd := end - nb
-	for fEnd > fBegin && data[fEnd-1] == ' ' {
-		fEnd--
-	}
-
-	// render the code span
-	if fBegin != fEnd {
-		code := NewNode(Code)
-		code.Literal = data[fBegin:fEnd]
-		return end, code
-	}
-
-	return end, nil
-}
-
 // newline preceded by two spaces becomes <br>
 func maybeLineBreak(p *Markdown, data []byte, offset int) (int, *Node) {
 	origOffset := offset

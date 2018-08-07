@@ -17,7 +17,6 @@ const (
 	List
 	Item
 	Paragraph
-	//Heading
 	HorizontalRule
 	Emph
 	Strong
@@ -26,10 +25,8 @@ const (
 	Image
 	Text
 	HTMLBlock
-	CodeBlock
 	Softbreak
 	Hardbreak
-	Code
 	HTMLSpan
 	Table
 	TableCell
@@ -52,10 +49,8 @@ var nodeTypeNames = []string{
 	Image:          "Image",
 	Text:           "Text",
 	HTMLBlock:      "HTMLBlock",
-	CodeBlock:      "CodeBlock",
 	Softbreak:      "Softbreak",
 	Hardbreak:      "Hardbreak",
-	Code:           "Code",
 	HTMLSpan:       "HTMLSpan",
 	Table:          "Table",
 	TableCell:      "TableCell",
