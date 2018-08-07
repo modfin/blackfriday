@@ -757,6 +757,17 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			r.cr(w)
 		}
 	case TableHead:
+		hasContent := false
+		if row := node.FirstChild; row != nil {
+			for cell := row.FirstChild; cell != nil; cell = cell.Next {
+				if cell.FirstChild != nil {
+					hasContent = true
+				}
+			}
+		}
+		if !hasContent {
+			return SkipChildren
+		}
 		if entering {
 			r.cr(w)
 			r.out(w, theadTag)
