@@ -27,7 +27,6 @@ const (
 	HTMLBlock
 	Softbreak
 	Hardbreak
-	//HTMLSpan
 	Table
 	TableCell
 	TableHead
@@ -51,7 +50,6 @@ var nodeTypeNames = []string{
 	HTMLBlock:      "HTMLBlock",
 	Softbreak:      "Softbreak",
 	Hardbreak:      "Hardbreak",
-	//HTMLSpan:       "HTMLSpan",
 	Table:          "Table",
 	TableCell:      "TableCell",
 	TableHead:      "TableHead",
