@@ -15,11 +15,8 @@ package blackfriday
 
 import (
 	"bytes"
-	"html"
-	"regexp"
-	"strings"
-
-		)
+		"regexp"
+			)
 
 const (
 	charEntity = "&(?:#x[a-f0-9]{1,8}|#[0-9]{1,8}|[a-z][a-z0-9]{1,31});"
@@ -396,130 +393,6 @@ func (*Markdown) isHRule(data []byte) bool {
 	}
 
 	return n >= 3
-}
-
-// isFenceLine checks if there's a fence line (e.g., ``` or ``` go) at the beginning of data,
-// and returns the end index if so, or 0 otherwise. It also returns the marker found.
-// If info is not nil, it gets set to the syntax specified in the fence line.
-func isFenceLine(data []byte, info *string, oldmarker string) (end int, marker string) {
-	i, size := 0, 0
-
-	// skip up to three spaces
-	for i < len(data) && i < 3 && data[i] == ' ' {
-		i++
-	}
-
-	// check for the marker characters: ~ or `
-	if i >= len(data) {
-		return 0, ""
-	}
-	if data[i] != '~' && data[i] != '`' {
-		return 0, ""
-	}
-
-	c := data[i]
-
-	// the whole line must be the same char or whitespace
-	for i < len(data) && data[i] == c {
-		size++
-		i++
-	}
-
-	// the marker char must occur at least 3 times
-	if size < 3 {
-		return 0, ""
-	}
-	marker = string(data[i-size : i])
-
-	// if this is the end marker, it must match the beginning marker
-	if oldmarker != "" && marker != oldmarker {
-		return 0, ""
-	}
-
-	// TODO(shurcooL): It's probably a good idea to simplify the 2 code paths here
-	// into one, always get the info string, and discard it if the caller doesn't care.
-	if info != nil {
-		infoLength := 0
-		i = skipChar(data, i, ' ')
-
-		if i >= len(data) {
-			if i == len(data) {
-				return i, marker
-			}
-			return 0, ""
-		}
-
-		infoStart := i
-
-		if data[i] == '{' {
-			i++
-			infoStart++
-
-			for i < len(data) && data[i] != '}' && data[i] != '\n' {
-				infoLength++
-				i++
-			}
-
-			if i >= len(data) || data[i] != '}' {
-				return 0, ""
-			}
-
-			// strip all whitespace at the beginning and the end
-			// of the {} block
-			for infoLength > 0 && isspace(data[infoStart]) {
-				infoStart++
-				infoLength--
-			}
-
-			for infoLength > 0 && isspace(data[infoStart+infoLength-1]) {
-				infoLength--
-			}
-			i++
-			i = skipChar(data, i, ' ')
-		} else {
-			for i < len(data) && !isverticalspace(data[i]) {
-				infoLength++
-				i++
-			}
-		}
-
-		*info = strings.TrimSpace(string(data[infoStart : infoStart+infoLength]))
-	}
-
-	if i == len(data) {
-		return i, marker
-	}
-	if i > len(data) || data[i] != '\n' {
-		return 0, ""
-	}
-	return i + 1, marker // Take newline into account.
-}
-
-func unescapeChar(str []byte) []byte {
-	if str[0] == '\\' {
-		return []byte{str[1]}
-	}
-	return []byte(html.UnescapeString(string(str)))
-}
-
-func unescapeString(str []byte) []byte {
-	if reBackslashOrAmp.Match(str) {
-		return reEntityOrEscapedChar.ReplaceAllFunc(str, unescapeChar)
-	}
-	return str
-}
-
-func finalizeCodeBlock(block *Node) {
-	if block.IsFenced {
-		newlinePos := bytes.IndexByte(block.content, '\n')
-		firstLine := block.content[:newlinePos]
-		rest := block.content[newlinePos+1:]
-		block.Info = unescapeString(bytes.Trim(firstLine, "\n"))
-		block.Literal = rest
-	} else {
-		block.Literal = block.content
-	}
-	block.content = nil
 }
 
 func (p *Markdown) table(data []byte) int {
