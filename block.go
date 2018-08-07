@@ -439,17 +439,6 @@ func (p *Markdown) quote(data []byte) int {
 	return end
 }
 
-// returns prefix length for block code
-func (p *Markdown) codePrefix(data []byte) int {
-	if len(data) >= 1 && data[0] == '\t' {
-		return 1
-	}
-	if len(data) >= 4 && data[0] == ' ' && data[1] == ' ' && data[2] == ' ' && data[3] == ' ' {
-		return 4
-	}
-	return 0
-}
-
 // returns unordered list item prefix
 func (p *Markdown) uliPrefix(data []byte) int {
 	i := 0
@@ -859,8 +848,7 @@ func (p *Markdown) paragraph(data []byte) int {
 		if p.extensions&NoEmptyLineBeforeBlock != 0 {
 			if p.uliPrefix(current) != 0 ||
 				p.oliPrefix(current) != 0 ||
-				p.quotePrefix(current) != 0 ||
-				p.codePrefix(current) != 0 {
+				p.quotePrefix(current) != 0 {
 				p.renderParagraph(data[:i])
 				return i
 			}
@@ -882,14 +870,6 @@ func (p *Markdown) paragraph(data []byte) int {
 func skipChar(data []byte, start int, char byte) int {
 	i := start
 	for i < len(data) && data[i] == char {
-		i++
-	}
-	return i
-}
-
-func skipUntilChar(text []byte, start int, char byte) int {
-	i := start
-	for i < len(text) && text[i] != char {
 		i++
 	}
 	return i
