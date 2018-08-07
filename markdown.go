@@ -33,7 +33,6 @@ const (
 	Autolink                                      // Detect embedded URLs that are not explicitly marked
 	Strikethrough                                 // Strikethrough text using ~~test~~
 	HardLineBreak                                 // Translate newlines into line breaks
-	TabSizeEight                                  // Expand tabs to eight spaces instead of four
 	NoEmptyLineBeforeBlock                        // No need to insert an empty line to start a (code, quote, ordered list, unordered list) block
 	BackslashLineBreak                            // Translate trailing backslashes into line breaks
 	DefinitionLists                               // Render definition lists
@@ -73,57 +72,6 @@ const (
 	TableAlignmentRight
 	TableAlignmentCenter = (TableAlignmentLeft | TableAlignmentRight)
 )
-
-// The size of a tab stop.
-const (
-	TabSizeDefault = 4
-	TabSizeDouble  = 8
-)
-
-// blockTags is a set of tags that are recognized as HTML block tags.
-// Any of these can be included in markdown text without special escaping.
-var blockTags = map[string]struct{}{
-	"blockquote": {},
-	"del":        {},
-	"div":        {},
-	"dl":         {},
-	"fieldset":   {},
-	"form":       {},
-	"h1":         {},
-	"h2":         {},
-	"h3":         {},
-	"h4":         {},
-	"h5":         {},
-	"h6":         {},
-	"iframe":     {},
-	"ins":        {},
-	"math":       {},
-	"noscript":   {},
-	"ol":         {},
-	"pre":        {},
-	"p":          {},
-	"script":     {},
-	"style":      {},
-	"table":      {},
-	"ul":         {},
-
-	// HTML5
-	"address":    {},
-	"article":    {},
-	"aside":      {},
-	"canvas":     {},
-	"figcaption": {},
-	"figure":     {},
-	"footer":     {},
-	"header":     {},
-	"hgroup":     {},
-	"main":       {},
-	"nav":        {},
-	"output":     {},
-	"progress":   {},
-	"section":    {},
-	"video":      {},
-}
 
 // Renderer is the rendering interface. This is mostly of interest if you are
 // implementing a new rendering format.
