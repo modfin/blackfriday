@@ -69,16 +69,12 @@ type ListData struct {
 	Tight           bool   // Skip <p>s around list item data if true
 	BulletChar      byte   // '*', '+' or '-' in bullet lists
 	Delimiter       byte   // '.' or ')' after the number in ordered lists
-	RefLink         []byte // If not nil, turns this list item into a footnote item and triggers different rendering
-	IsFootnotesList bool   // This is a list of footnotes
 }
 
 // LinkData contains fields relevant to a Link node type.
 type LinkData struct {
 	Destination []byte // Destination is what goes into a href
 	Title       []byte // Title is the tooltip thing that goes in a title attribute
-	NoteID      int    // NoteID contains a serial number of a footnote, zero if it's not a footnote
-	Footnote    *Node  // If it's a footnote, this is a direct link to the footnote Node. Otherwise nil.
 }
 
 // TableCellData contains fields relevant to a TableCell node type.

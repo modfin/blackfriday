@@ -39,7 +39,6 @@ const (
 	HrefTargetBlank                               // Add a blank target
 	CompletePage                                  // Generate a complete HTML page
 	UseXHTML                                      // Generate XHTML output instead of HTML
-	FootnoteReturnLinks                           // Generate a link at the end of a footnote to return to the source
 	Smartypants                                   // Enable smart punctuation substitutions
 	SmartypantsFractions                          // Enable smart fractions (with Smartypants)
 	SmartypantsDashes                             // Enable smart dashes (with Smartypants)
@@ -337,21 +336,6 @@ func (r *HTMLRenderer) tag(w io.Writer, name []byte, attrs []string) {
 	r.lastOutputLen = 1
 }
 
-func footnoteRef(prefix string, node *Node) []byte {
-	urlFrag := prefix + string(slugify(node.Destination))
-	anchor := fmt.Sprintf(`<a href="#fn:%s">%d</a>`, urlFrag, node.NoteID)
-	return []byte(fmt.Sprintf(`<sup class="footnote-ref" id="fnref:%s">%s</sup>`, urlFrag, anchor))
-}
-
-func footnoteItem(prefix string, slug []byte) []byte {
-	return []byte(fmt.Sprintf(`<li id="fn:%s%s">`, prefix, slug))
-}
-
-func footnoteReturnLink(prefix, returnLink string, slug []byte) []byte {
-	const format = ` <a class="footnote-return" href="#fnref:%s%s">%s</a>`
-	return []byte(fmt.Sprintf(format, prefix, slug, returnLink))
-}
-
 func itemOpenCR(node *Node) bool {
 	if node.Prev == nil {
 		return false
@@ -416,10 +400,6 @@ var (
 	ttCloseTag         = []byte("</tt>")
 	aTag               = []byte("<a")
 	aCloseTag          = []byte("</a>")
-	preTag             = []byte("<pre>")
-	preCloseTag        = []byte("</pre>")
-	codeTag            = []byte("<code>")
-	codeCloseTag       = []byte("</code>")
 	pTag               = []byte("<p>")
 	pCloseTag          = []byte("</p>")
 	blockquoteTag      = []byte("<blockquote>")
@@ -450,39 +430,7 @@ var (
 	tbodyCloseTag      = []byte("</tbody>")
 	trTag              = []byte("<tr>")
 	trCloseTag         = []byte("</tr>")
-	h1Tag              = []byte("<h1")
-	h1CloseTag         = []byte("</h1>")
-	h2Tag              = []byte("<h2")
-	h2CloseTag         = []byte("</h2>")
-	h3Tag              = []byte("<h3")
-	h3CloseTag         = []byte("</h3>")
-	h4Tag              = []byte("<h4")
-	h4CloseTag         = []byte("</h4>")
-	h5Tag              = []byte("<h5")
-	h5CloseTag         = []byte("</h5>")
-	h6Tag              = []byte("<h6")
-	h6CloseTag         = []byte("</h6>")
-
-	footnotesDivBytes      = []byte("\n<div class=\"footnotes\">\n\n")
-	footnotesCloseDivBytes = []byte("\n</div>\n")
 )
-
-func headingTagsFromLevel(level int) ([]byte, []byte) {
-	if level <= 1 {
-		return h1Tag, h1CloseTag
-	}
-	switch level {
-	case 2:
-		return h2Tag, h2CloseTag
-	case 3:
-		return h3Tag, h3CloseTag
-	case 4:
-		return h4Tag, h4CloseTag
-	case 5:
-		return h5Tag, h5CloseTag
-	}
-	return h6Tag, h6CloseTag
-}
 
 func (r *HTMLRenderer) outHRTag(w io.Writer) {
 	if r.Flags&UseXHTML == 0 {
@@ -562,10 +510,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 				escLink(&hrefBuf, dest)
 				hrefBuf.WriteByte('"')
 				attrs = append(attrs, hrefBuf.String())
-				if node.NoteID != 0 {
-					r.out(w, footnoteRef(r.FootnoteAnchorPrefix, node))
-					break
-				}
 				attrs = appendLinkAttrs(attrs, r.Flags, dest)
 				if len(node.LinkData.Title) > 0 {
 					var titleBuff bytes.Buffer
@@ -576,9 +520,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 				}
 				r.tag(w, aTag, attrs)
 			} else {
-				if node.NoteID != 0 {
-					break
-				}
 				r.out(w, aCloseTag)
 			}
 		}
@@ -665,11 +606,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			closeTag = dlCloseTag
 		}
 		if entering {
-			if node.IsFootnotesList {
-				r.out(w, footnotesDivBytes)
-				r.outHRTag(w)
-				r.cr(w)
-			}
 			r.cr(w)
 			if node.Parent.Type == Item && node.Parent.Parent.Tight {
 				r.cr(w)
@@ -688,9 +624,6 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			if node.Parent.Type == Document || node.Parent.Type == BlockQuote {
 				r.cr(w)
 			}
-			if node.IsFootnotesList {
-				r.out(w, footnotesCloseDivBytes)
-			}
 		}
 	case Item:
 		openTag := liTag
@@ -707,19 +640,8 @@ func (r *HTMLRenderer) RenderNode(w io.Writer, node *Node, entering bool) WalkSt
 			if itemOpenCR(node) {
 				r.cr(w)
 			}
-			if node.ListData.RefLink != nil {
-				slug := slugify(node.ListData.RefLink)
-				r.out(w, footnoteItem(r.FootnoteAnchorPrefix, slug))
-				break
-			}
 			r.out(w, openTag)
 		} else {
-			if node.ListData.RefLink != nil {
-				slug := slugify(node.ListData.RefLink)
-				if r.Flags&FootnoteReturnLinks != 0 {
-					r.out(w, footnoteReturnLink(r.FootnoteAnchorPrefix, r.FootnoteReturnLinkContents, slug))
-				}
-			}
 			r.out(w, closeTag)
 			r.cr(w)
 		}

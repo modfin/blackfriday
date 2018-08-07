@@ -16,13 +16,9 @@ package blackfriday
 import (
 	"bytes"
 	"regexp"
-	"strconv"
 )
 
 var (
-	urlRe    = `((https?|ftp):\/\/|\/)[-A-Za-z0-9+&@#\/%?=~_|!:,.;\(\)]+`
-	anchorRe = regexp.MustCompile(`^(<a\shref="` + urlRe + `"(\stitle="[^"<>]+")?\s?>` + urlRe + `<\/a>)`)
-
 	// https://www.w3.org/TR/html5/syntax.html#character-references
 	// highest unicode code point in 17 planes (2^20): 1,114,112d =
 	// 7 dec digits or 6 hex digits
@@ -157,25 +153,9 @@ type linkType int
 const (
 	linkNormal linkType = iota
 	linkImg
-	linkDeferredFootnote
-	linkInlineFootnote
 )
 
-func isReferenceStyleLink(data []byte, pos int, t linkType) bool {
-	if t == linkDeferredFootnote {
-		return false
-	}
-	return pos < len(data)-1 && data[pos] == '[' && data[pos+1] != '^'
-}
-
 func maybeImage(p *Markdown, data []byte, offset int) (int, *Node) {
-	if offset < len(data)-1 && data[offset+1] == '[' {
-		return link(p, data, offset)
-	}
-	return 0, nil
-}
-
-func maybeInlineFootnote(p *Markdown, data []byte, offset int) (int, *Node) {
 	if offset < len(data)-1 && data[offset+1] == '[' {
 		return link(p, data, offset)
 	}
@@ -185,29 +165,16 @@ func maybeInlineFootnote(p *Markdown, data []byte, offset int) (int, *Node) {
 // '[': parse a link or an image or a footnote
 func link(p *Markdown, data []byte, offset int) (int, *Node) {
 	// no links allowed inside regular links, footnote, and deferred footnotes
-	if p.insideLink && (offset > 0 && data[offset-1] == '[' || len(data)-1 > offset && data[offset+1] == '^') {
+	if p.insideLink && (offset > 0 && data[offset-1] == '[') {
 		return 0, nil
 	}
 
 	var t linkType
 	switch {
-	// special case: ![^text] == deferred footnote (that follows something with
-	// an exclamation point)
-	case p.extensions&Footnotes != 0 && len(data)-1 > offset && data[offset+1] == '^':
-		t = linkDeferredFootnote
 	// ![alt] == image
 	case offset >= 0 && data[offset] == '!':
 		t = linkImg
 		offset++
-	// ^[text] == inline footnote
-	// [^refId] == deferred footnote
-	case p.extensions&Footnotes != 0:
-		if offset >= 0 && data[offset] == '^' {
-			t = linkInlineFootnote
-			offset++
-		} else if len(data)-1 > offset && data[offset+1] == '^' {
-			t = linkDeferredFootnote
-		}
 	// [text] == regular link
 	default:
 		t = linkNormal
@@ -217,21 +184,12 @@ func link(p *Markdown, data []byte, offset int) (int, *Node) {
 
 	var (
 		i                       = 1
-		noteID                  int
 		title, link, altContent []byte
-		textHasNl               = false
 	)
-
-	if t == linkDeferredFootnote {
-		i++
-	}
 
 	// look for the matching closing bracket
 	for level := 1; level > 0 && i < len(data); i++ {
 		switch {
-		case data[i] == '\n':
-			textHasNl = true
-
 		case data[i-1] == '\\':
 			continue
 
@@ -252,7 +210,6 @@ func link(p *Markdown, data []byte, offset int) (int, *Node) {
 
 	txtE := i
 	i++
-	var footnoteNode *Node
 
 	// skip any amount of whitespace or newline
 	// (this is much more lax than original markdown syntax)
@@ -353,136 +310,8 @@ func link(p *Markdown, data []byte, offset int) (int, *Node) {
 
 		i++
 
-	// reference style link
-	case isReferenceStyleLink(data, i, t):
-		var id []byte
-		altContentConsidered := false
-
-		// look for the id
-		i++
-		linkB := i
-		for i < len(data) && data[i] != ']' {
-			i++
-		}
-		if i >= len(data) {
-			return 0, nil
-		}
-		linkE := i
-
-		// find the reference
-		if linkB == linkE {
-			if textHasNl {
-				var b bytes.Buffer
-
-				for j := 1; j < txtE; j++ {
-					switch {
-					case data[j] != '\n':
-						b.WriteByte(data[j])
-					case data[j-1] != ' ':
-						b.WriteByte(' ')
-					}
-				}
-
-				id = b.Bytes()
-			} else {
-				id = data[1:txtE]
-				altContentConsidered = true
-			}
-		} else {
-			id = data[linkB:linkE]
-		}
-
-		// find the reference with matching id
-		lr, ok := p.getRef(string(id))
-		if !ok {
-			return 0, nil
-		}
-
-		// keep link and title from reference
-		link = lr.link
-		title = lr.title
-		if altContentConsidered {
-			altContent = lr.text
-		}
-		i++
-
-	// shortcut reference style link or reference or inline footnote
 	default:
-		var id []byte
-
-		// craft the id
-		if textHasNl {
-			var b bytes.Buffer
-
-			for j := 1; j < txtE; j++ {
-				switch {
-				case data[j] != '\n':
-					b.WriteByte(data[j])
-				case data[j-1] != ' ':
-					b.WriteByte(' ')
-				}
-			}
-
-			id = b.Bytes()
-		} else {
-			if t == linkDeferredFootnote {
-				id = data[2:txtE] // get rid of the ^
-			} else {
-				id = data[1:txtE]
-			}
-		}
-
-		footnoteNode = NewNode(Item)
-		if t == linkInlineFootnote {
-			// create a new reference
-			noteID = len(p.notes) + 1
-
-			var fragment []byte
-			if len(id) > 0 {
-				if len(id) < 16 {
-					fragment = make([]byte, len(id))
-				} else {
-					fragment = make([]byte, 16)
-				}
-				copy(fragment, slugify(id))
-			} else {
-				fragment = append([]byte("footnote-"), []byte(strconv.Itoa(noteID))...)
-			}
-
-			ref := &reference{
-				noteID:   noteID,
-				hasBlock: false,
-				link:     fragment,
-				title:    id,
-				footnote: footnoteNode,
-			}
-
-			p.notes = append(p.notes, ref)
-
-			link = ref.link
-			title = ref.title
-		} else {
-			// find the reference with matching id
-			lr, ok := p.getRef(string(id))
-			if !ok {
-				return 0, nil
-			}
-
-			if t == linkDeferredFootnote {
-				lr.noteID = len(p.notes) + 1
-				lr.footnote = footnoteNode
-				p.notes = append(p.notes, lr)
-			}
-
-			// keep link and title from reference
-			link = lr.link
-			// if inline footnote, title == footnote contents
-			title = lr.title
-			noteID = lr.noteID
-		}
-
-		// rewind the whitespace
-		i = txtE + 1
+		return 0, nil
 	}
 
 	var uLink []byte
@@ -523,16 +352,6 @@ func link(p *Markdown, data []byte, offset int) (int, *Node) {
 		linkNode.Title = title
 		linkNode.AppendChild(text(data[1:txtE]))
 		i++
-
-	case linkInlineFootnote, linkDeferredFootnote:
-		linkNode = NewNode(Link)
-		linkNode.Destination = link
-		linkNode.Title = title
-		linkNode.NoteID = noteID
-		linkNode.Footnote = footnoteNode
-		if t == linkInlineFootnote {
-			i++
-		}
 
 	default:
 		return 0, nil
@@ -674,20 +493,6 @@ func maybeAutoLink(p *Markdown, data []byte, offset int) (int, *Node) {
 }
 
 func autoLink(p *Markdown, data []byte, offset int) (int, *Node) {
-	//// Now a more expensive check to see if we're not inside an anchor element
-	//anchorStart := offset
-	//offsetFromAnchor := 0
-	//for anchorStart > 0 && data[anchorStart] != '<' {
-	//	anchorStart--
-	//	offsetFromAnchor++
-	//}
-	//
-	//anchorStr := anchorRe.Find(data[anchorStart:])
-	//if anchorStr != nil {
-	//	anchorClose := NewNode(HTMLSpan)
-	//	anchorClose.Literal = anchorStr[offsetFromAnchor:]
-	//	return len(anchorStr) - offsetFromAnchor, anchorClose
-	//}
 
 	// scan backward for a word boundary
 	rewind := 0
@@ -819,114 +624,6 @@ func isSafeLink(link []byte) bool {
 	}
 
 	return false
-}
-
-// return the length of the given tag, or 0 is it's not valid
-func tagLength(data []byte) (autolink autolinkType, end int) {
-	var i, j int
-
-	// a valid tag can't be shorter than 3 chars
-	if len(data) < 3 {
-		return notAutolink, 0
-	}
-
-	// begins with a '<' optionally followed by '/', followed by letter or number
-	if data[0] != '<' {
-		return notAutolink, 0
-	}
-	if data[1] == '/' {
-		i = 2
-	} else {
-		i = 1
-	}
-
-	if !isalnum(data[i]) {
-		return notAutolink, 0
-	}
-
-	// scheme test
-	autolink = notAutolink
-
-	// try to find the beginning of an URI
-	for i < len(data) && (isalnum(data[i]) || data[i] == '.' || data[i] == '+' || data[i] == '-') {
-		i++
-	}
-
-	if i > 1 && i < len(data) && data[i] == '@' {
-		if j = isMailtoAutoLink(data[i:]); j != 0 {
-			return emailAutolink, i + j
-		}
-	}
-
-	if i > 2 && i < len(data) && data[i] == ':' {
-		autolink = normalAutolink
-		i++
-	}
-
-	// complete autolink test: no whitespace or ' or "
-	switch {
-	case i >= len(data):
-		autolink = notAutolink
-	case autolink != notAutolink:
-		j = i
-
-		for i < len(data) {
-			if data[i] == '\\' {
-				i += 2
-			} else if data[i] == '>' || data[i] == '\'' || data[i] == '"' || isspace(data[i]) {
-				break
-			} else {
-				i++
-			}
-
-		}
-
-		if i >= len(data) {
-			return autolink, 0
-		}
-		if i > j && data[i] == '>' {
-			return autolink, i + 1
-		}
-
-		// one of the forbidden chars has been found
-		autolink = notAutolink
-	}
-	i += bytes.IndexByte(data[i:], '>')
-	if i < 0 {
-		return autolink, 0
-	}
-	return autolink, i + 1
-}
-
-// look for the address part of a mail autolink and '>'
-// this is less strict than the original markdown e-mail address matching
-func isMailtoAutoLink(data []byte) int {
-	nb := 0
-
-	// address is assumed to be: [-@._a-zA-Z0-9]+ with exactly one '@'
-	for i := 0; i < len(data); i++ {
-		if isalnum(data[i]) {
-			continue
-		}
-
-		switch data[i] {
-		case '@':
-			nb++
-
-		case '-', '.', '_':
-			break
-
-		case '>':
-			if nb == 1 {
-				return i + 1
-			}
-			return 0
-		default:
-			return 0
-		}
-	}
-
-	return 0
 }
 
 // look for the next emph char, skipping other constructs

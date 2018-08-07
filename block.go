@@ -13,20 +13,8 @@
 
 package blackfriday
 
-import (
-	"bytes"
-		"regexp"
-			)
+import "bytes"
 
-const (
-	charEntity = "&(?:#x[a-f0-9]{1,8}|#[0-9]{1,8}|[a-z][a-z0-9]{1,31});"
-	escapable  = "[!\"#$%&'()*+,./:;<=>?@[\\\\\\]^_`{|}~-]"
-)
-
-var (
-	reBackslashOrAmp      = regexp.MustCompile("[\\&]")
-	reEntityOrEscapedChar = regexp.MustCompile("(?i)\\\\" + escapable + "|" + charEntity)
-)
 
 // Parse block-level data.
 // Note: this function and many that it calls assume that
@@ -798,24 +786,12 @@ func (p *Markdown) paragraph(data []byte) int {
 	// line: index of 1st char of current line
 	// i: index of cursor/end of current line
 	var prev, line, i int
-	tabSize := TabSizeDefault
-	if p.extensions&TabSizeEight != 0 {
-		tabSize = TabSizeDouble
-	}
 	// keep going until we find something to mark the end of the paragraph
 	for i < len(data) {
 		// mark the beginning of the current line
 		prev = line
 		current := data[i:]
 		line = i
-
-		// did we find a reference or a footnote? If so, end a paragraph
-		// preceding it and report that we have consumed up to the end of that
-		// reference:
-		if refEnd := isReference(p, current, tabSize); refEnd > 0 {
-			p.renderParagraph(data[:i])
-			return i + refEnd
-		}
 
 		// did we find a blank line marking the end of the paragraph?
 		if n := p.isEmpty(current); n > 0 {

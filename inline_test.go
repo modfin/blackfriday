@@ -76,64 +76,6 @@ func TestEmphasis(t *testing.T) {
 	doTestsInline(t, tests)
 }
 
-func TestReferenceOverride(t *testing.T) {
-	var tests = []string{
-		"test [ref1][]\n",
-		"<p>test <a href=\"http://www.ref1.com/\" title=\"Reference 1\">ref1</a></p>\n",
-
-		"test [my ref][ref1]\n",
-		"<p>test <a href=\"http://www.ref1.com/\" title=\"Reference 1\">my ref</a></p>\n",
-
-		"test [ref2][]\n\n[ref2]: http://www.leftalone.com/ (Ref left alone)\n",
-		"<p>test <a href=\"http://www.overridden.com/\" title=\"Reference Overridden\">ref2</a></p>\n",
-
-		"test [ref3][]\n\n[ref3]: http://www.leftalone.com/ (Ref left alone)\n",
-		"<p>test <a href=\"http://www.leftalone.com/\" title=\"Ref left alone\">ref3</a></p>\n",
-
-		"test [ref4][]\n\n[ref4]: http://zombo.com/ (You can do anything)\n",
-		"<p>test [ref4][]</p>\n",
-
-		"test [!(*http.ServeMux).ServeHTTP][] complicated ref\n",
-		"<p>test <a href=\"http://localhost:6060/pkg/net/http/#ServeMux.ServeHTTP\" title=\"ServeHTTP docs\">!(*http.ServeMux).ServeHTTP</a> complicated ref</p>\n",
-
-		"test [ref5][]\n",
-		"<p>test <a href=\"http://www.ref5.com/\" title=\"Reference 5\">Moo</a></p>\n",
-	}
-	doTestsInlineParam(t, tests, TestParams{
-		referenceOverride: func(reference string) (rv *Reference, overridden bool) {
-			switch reference {
-			case "ref1":
-				// just an overridden reference exists without definition
-				return &Reference{
-					Link:  "http://www.ref1.com/",
-					Title: "Reference 1"}, true
-			case "ref2":
-				// overridden exists and reference defined
-				return &Reference{
-					Link:  "http://www.overridden.com/",
-					Title: "Reference Overridden"}, true
-			case "ref3":
-				// not overridden and reference defined
-				return nil, false
-			case "ref4":
-				// overridden missing and defined
-				return nil, true
-			case "!(*http.ServeMux).ServeHTTP":
-				return &Reference{
-					Link:  "http://localhost:6060/pkg/net/http/#ServeMux.ServeHTTP",
-					Title: "ServeHTTP docs"}, true
-			case "ref5":
-				return &Reference{
-					Link:  "http://www.ref5.com/",
-					Title: "Reference 5",
-					Text:  "Moo",
-				}, true
-			}
-			return nil, false
-		},
-	})
-}
-
 func TestStrong(t *testing.T) {
 	var tests = []string{
 		"nothing inline\n",
